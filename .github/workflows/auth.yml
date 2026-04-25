@@ -1,8 +1,9 @@
-# =============================================================================
-# CareSync — Auth Service CI/CD
-# Repository : caresync-org/auth-service
-# File       : .github/workflows/auth.yml
-# =============================================================================
+# caresync-org/auth-service
+# .github/workflows/auth.yml
+# KEY FIX: manifest_branch: ${{ github.ref_name }}
+# dev push   → updates argoCD-manifests 'dev' branch
+# prod push  → updates argoCD-manifests 'production' branch
+
 name: Auth Service CI/CD
 
 on:
@@ -17,16 +18,16 @@ jobs:
     name: "Job 1 — SonarQube"
     uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@dev
     with:
-      service_name:      "auth"
-      service_path:      "."
+      service_name: "auth"
+      service_path: "."
       sonar_project_key: "caresync-auth"
-      node_version:      "20"
+      node_version: "20"
     secrets:
       SONARQUBE_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
-      SONARQUBE_URL:   ${{ secrets.SONARQUBE_URL }}
-      SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
-      SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL:     ${{ secrets.ALERT_EMAIL }}
+      SONARQUBE_URL: ${{ secrets.SONARQUBE_URL }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
 
   build-snyk:
     name: "Job 2 — Install & Snyk"
@@ -40,30 +41,30 @@ jobs:
       service_path: "."
       node_version: "20"
     secrets:
-      SNYK_TOKEN:    ${{ secrets.SNYK_TOKEN }}
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL:   ${{ secrets.ALERT_EMAIL }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
 
   docker:
     name: "Job 3 — Docker Build, Trivy & Push"
     needs: build-snyk
     permissions:
       security-events: write
-      contents: write           # 👈 write needed for docker job
+      contents: write
     uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
-      service_name:      "auth"
-      service_path:      "."
+      service_name: "auth"
+      service_path: "."
       docker_image_name: "caresync-auth"
-      node_version:      "20"
+      node_version: "20"
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
-      MANIFEST_REPO_PAT:  ${{ secrets.MANIFEST_REPO_PAT }}
-      SMTP_USERNAME:      ${{ secrets.SMTP_USERNAME }}
-      SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL:        ${{ secrets.ALERT_EMAIL }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      MANIFEST_REPO_PAT: ${{ secrets.MANIFEST_REPO_PAT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
 
   approval:
     name: "Job 4 — Approval Gate"
@@ -72,8 +73,8 @@ jobs:
     uses: caresync-org/template-ci/.github/workflows/template-approval.yml@dev
     with:
       service_name: "auth"
-      full_image:   ${{ needs.docker.outputs.full_image }}
-      image_tag:    ${{ needs.docker.outputs.image_tag }}
+      full_image: ${{ needs.docker.outputs.full_image }}
+      image_tag: ${{ needs.docker.outputs.image_tag }}
 
   cd:
     name: "Job 5 — CD (ArgoCD)"
@@ -88,17 +89,18 @@ jobs:
       )
     uses: caresync-org/template-ci/.github/workflows/template-cd.yml@dev
     with:
-      service_name:         "auth"
-      image_tag:            ${{ needs.docker.outputs.image_tag }}
-      full_image:           ${{ needs.docker.outputs.full_image }}
-      values_key:           "auth.image.tag"
-      manifest_repo:        "caresync-org/argoCD-manifests"
+      service_name: "auth"
+      image_tag: ${{ needs.docker.outputs.image_tag }}
+      full_image: ${{ needs.docker.outputs.full_image }}
+      values_key: "auth.image.tag"
+      manifest_repo: "caresync-org/argoCD-manifests"
       manifest_values_path: "values.yaml"
+      manifest_branch: ${{ github.ref_name }}    # ← KEY FIX
     secrets:
       MANIFEST_REPO_PAT: ${{ secrets.MANIFEST_REPO_PAT }}
-      SMTP_USERNAME:     ${{ secrets.SMTP_USERNAME }}
-      SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL:       ${{ secrets.ALERT_EMAIL }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
 
   notify-success:
     name: "📧 Pipeline Success"
